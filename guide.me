@@ -1,0 +1,317 @@
+# Focus Project Guide
+
+## Purpose
+
+FocusFlow is a responsive productivity and task-management application built with Next.js App Router, TypeScript, Tailwind CSS, Prisma, SQLite, and NextAuth.
+
+The product should help users create, organize, complete, search, filter, schedule, and review tasks while keeping each user's data private.
+
+## Current Technology Stack
+
+- Frontend: Next.js 15 App Router, React 19, TypeScript
+- Styling: Tailwind CSS 3
+- Authentication: NextAuth v5 with JWT sessions and Credentials provider
+- Database: Prisma ORM with SQLite
+- Password hashing: bcryptjs
+- Date and time: date-fns
+- Icons: lucide-react
+- Forms and validation: Zod
+- Build and type checks: npm scripts
+
+## Product Architecture
+
+### Frontend
+
+- Route pages live under `app/`.
+- Reusable interface components live under `components/`.
+- Pages should remain thin and delegate data loading and rendering to server components or component clients.
+- Client-side state belongs in the component that owns the interaction.
+- Shared visual styles belong in `app/globals.css` and reusable UI components.
+
+### Backend
+
+- Authentication and authorization are handled through `lib/auth.ts`.
+- Database access is centralized through `lib/db.ts`.
+- REST API routes live under `app/api/`.
+- Every mutating route must validate input with Zod.
+- Every route must authenticate the current user and scope queries to that user's ID.
+- Never trust a user ID supplied by the client.
+
+### Database
+
+The Prisma schema is in `prisma/schema.prisma` and currently contains:
+
+- `User`: account information, theme preference, notification preference, tasks, categories, sessions, and accounts.
+- `Account`: OAuth or provider account metadata.
+- `Session`: NextAuth session metadata.
+- `VerificationToken`: token-based authentication metadata.
+- `Category`: user-owned categories.
+- `Task`: user-owned tasks and their scheduling fields.
+
+The database uses SQLite through `DATABASE_URL`. Do not switch to a different provider without updating the schema, environment configuration, and deployment instructions.
+
+## Current Application Structure
+
+```text
+app/
+  api/
+    auth/
+      [...nextauth]/route.ts
+      register/route.ts
+    categories/
+      route.ts
+      [id]/route.ts
+    tasks/
+      route.ts
+      [id]/route.ts
+  calendar/page.tsx
+  categories/page.tsx
+  completed/page.tsx
+  dashboard/page.tsx
+  login/page.tsx
+  page.tsx
+  productivity/page.tsx
+  profile/page.tsx
+  register/page.tsx
+  settings/page.tsx
+  tasks/
+    page.tsx
+    new/page.tsx
+    [id]/edit/page.tsx
+  today/page.tsx
+  upcoming/page.tsx
+components/
+  analytics/productivity-client.tsx
+  calendar/calendar-client.tsx
+  categories/category-client.tsx
+  dashboard/dashboard-client.tsx
+  forms/login-form.tsx
+  forms/register-form.tsx
+  layout/app-shell.tsx
+  layout/auth-shell.tsx
+  providers/theme-provider.tsx
+  settings/settings-client.tsx
+  tasks/task-form-client.tsx
+  tasks/task-list-client.tsx
+  ui/task-card.tsx
+lib/
+  auth.ts
+  db.ts
+prisma/
+  schema.prisma
+scripts/
+  run-build.cmd
+```
+
+## Implemented Features
+
+### Authentication
+
+- Registration with name, email, and password.
+- Login with credentials.
+- JWT-backed sessions.
+- Logout.
+- Protected route access.
+- Password hashing with bcryptjs.
+- Tested account uniqueness and input validation.
+
+### Task Management
+
+- Create tasks through the task form.
+- Read tasks through server-rendered pages and API routes.
+- Update tasks through the task form.
+- Delete tasks through the task list.
+- Complete and restore tasks.
+- Set title, description, category, priority, status, due date, due time, reminder, recurrence, importance, and notes.
+- Search, filter, and sort tasks in the task list.
+- Keep task ownership scoped to the authenticated user.
+
+### Categories
+
+- Retrieve user-owned categories.
+- Create categories.
+- Delete categories.
+- Category names are validated and limited in length.
+- Category colors are validated as hexadecimal colors.
+
+### Navigation and Views
+
+- Dashboard
+- My Tasks
+- Today
+- Upcoming
+- Calendar
+- Categories
+- Completed
+- Productivity
+- Settings
+- Profile
+- Responsive application sidebar and mobile menu
+- Light and dark theme provider
+
+### Product Analytics
+
+- Real task counts are read from Prisma.
+- Completion, pending, overdue, and high-priority counts are calculated from task data.
+- The current analytics UI still contains placeholder chart values and should be connected to real task history before being considered complete.
+
+## Current Implementation Status
+
+| Feature | Status | Notes |
+|---|---|---|
+| Registration and login | Implemented | Credentials authentication with Prisma and bcrypt |
+| Logout | Implemented | NextAuth sign-out flow |
+| Forgot/reset password | Planned | No password-reset route or email flow yet |
+| Task CRUD | Implemented | Create, read, update, delete, and completion status |
+| User-owned task isolation | Implemented | Queries filter by authenticated user ID |
+| Task search/filter/sort | Partially implemented | Search, pending, completed, overdue, priority, due date, and alphabetical controls exist |
+| Categories | Implemented | Create and delete; editing is not implemented |
+| Calendar | Implemented | Monthly view and task display; selected-date task creation is not fully connected |
+| Reminders | Partially implemented | Reminder field exists in the form, but notification delivery is not implemented |
+| Recurring tasks | Partially implemented | Recurrence value is stored, but recurrence generation is not implemented |
+| Restore completed tasks | Partial | The task card can toggle completion; a dedicated restore operation is not required |
+| Duplicate tasks | Planned | No duplication API or UI |
+| Attachments | Planned | No attachment storage or upload flow |
+| Notifications | Partial | Settings UI exists; delivery and persistence are not implemented |
+| Profile management | Partial | Profile page and shell display static values; persistence is not implemented |
+| Settings | Partial | The settings page contains interactive controls but does not persist profile, theme, or notification data |
+| Analytics | Partial | Uses real task totals but contains placeholder chart data |
+
+## Required Product Behavior
+
+### Task API Rules
+
+- GET `/api/tasks` returns only the authenticated user's tasks.
+- POST `/api/tasks` creates a task for the authenticated user.
+- PATCH `/api/tasks/[id]` updates only a task owned by the authenticated user.
+- DELETE `/api/tasks/[id]` deletes only a task owned by the authenticated user.
+- Invalid input must return a friendly 400 response.
+- Missing or foreign tasks must return 404.
+- Unauthorized requests must return 401.
+- Do not expose database error details to the browser.
+
+### Category API Rules
+
+- Category queries must be scoped by `userId`.
+- Category writes must use the authenticated user's ID.
+- A category must not be changed or deleted if it belongs to another user.
+- Deleting a category used by tasks must either preserve the task or apply a documented policy.
+
+## UI and UX Rules
+
+- Use accessible labels for every form control.
+- Use meaningful button text and icon-only buttons with `aria-label`.
+- Support keyboard navigation.
+- Keep interfaces responsive with no horizontal scrolling.
+- Use consistent spacing, typography, cards, buttons, badges, and empty states.
+- Use text, icons, and labels together for priority; do not rely on color alone.
+- Use the existing theme provider for light and dark mode and remember the user's preference.
+- Do not copy another application's exact design.
+
+## Data Validation Rules
+
+- Task titles must contain at least two characters.
+- Priorities must be `LOW`, `MEDIUM`, `HIGH`, or `URGENT`.
+- Statuses must be `TODO`, `IN_PROGRESS`, `COMPLETED`, or `CANCELLED`.
+- Due dates must be valid dates.
+- Category IDs must belong to the authenticated user.
+- API payloads must be validated with Zod before database access.
+- Client-side validation may improve feedback but is not a substitute for server-side validation.
+
+## Error and Loading Handling
+
+- Show a loading state for network requests.
+- Show a friendly error message for failed API requests.
+- Do not expose stack traces or raw Prisma errors.
+- Use empty states for empty task, category, calendar, search, and analytics results.
+- Avoid duplicate request logic; place reusable API calls in appropriate server or client abstractions.
+
+## Development Workflow
+
+1. Identify the behavior and affected route or component.
+2. Confirm the user ownership rule.
+3. Add or update Zod validation where required.
+4. Update the Prisma schema only when the data model genuinely needs a change.
+5. Update the API route and render path.
+6. Add or update the reusable client component.
+7. Add or update the relevant page.
+8. Run type checking and a production build.
+9. Test the real user flow with the database and authentication enabled.
+
+Use these commands from the project root:
+
+```powershell
+npm install
+npm run db:generate
+npm run db:push
+npm run db:seed
+npm run typecheck
+npm run build
+```
+
+For the Windows wrapper:
+
+```powershell
+.\scripts\run-build.cmd
+```
+
+## Coding Rules
+
+- Do not create static mock data where real database data is required.
+- Do not leave unresolved TODO, FIXME, or placeholder implementations for required features.
+- Do not put an entire application in one file.
+- Do not hardcode user IDs, emails, or account state.
+- Do not expose passwords, token values, or raw database errors.
+- Keep component props typed and reusable.
+- Use consistent naming and folder conventions.
+- Do not add test-only methods to production classes or components.
+- Prefer real database and authentication integration tests over mocks.
+- Do not commit generated build output or local environment files.
+
+## Testing Requirements
+
+Before considering a feature complete, test:
+
+- Registration and duplicate email handling.
+- Login and invalid credentials.
+- Logout and protected-page redirection.
+- Creating, editing, completing, restoring, and deleting tasks.
+- Task ownership isolation.
+- Search, filter, and sorting.
+- Category creation and deletion.
+- Calendar task display and task creation.
+- Dark/light theme persistence.
+- Mobile navigation and responsive layouts.
+- Error states and empty states.
+- Production build and TypeScript checking.
+
+The current project should not claim a feature is complete unless the behavior exists in the real route, database, and UI flow.
+
+## Future Work
+
+Implement these only when requested or when they are required by the product roadmap:
+
+- Forgot and reset password with email delivery.
+- Task duplication and backup/export.
+- File attachments and document storage.
+- Email, push, and browser reminders.
+- Recurring task generation.
+- Shared tasks, teams, workspaces, and task assignment.
+- AI task assistant and voice input.
+- Habit, goal, and time tracking.
+- Google Calendar integration.
+- Subscription and billing features.
+
+## Completion Checklist
+
+A feature is ready only when all of the following are true:
+
+- The UI and data flow are implemented.
+- The authenticated user owns all related records.
+- Server-side validation is present.
+- Errors and loading states are handled.
+- The feature is responsive and accessible.
+- The relevant repository tests or manual checks have been run.
+- The production build completes successfully.
+
+If a feature is partly implemented, document the missing behavior explicitly instead of presenting it as complete.
